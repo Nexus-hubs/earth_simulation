@@ -114,8 +114,58 @@
             background: rgba(255,255,255,0.1); border: 1px solid #444; color: white;
             padding: 8px 12px; border-radius: 20px; cursor: pointer; font-size: 0.75rem;
             flex: 1; text-align: center; max-width: 100px;
+            transition: all 0.3s ease;
         }
         .toggle-btn.active { background: rgba(0, 210, 255, 0.2); border-color: #00d2ff; color: #00d2ff; }
+        .toggle-btn:hover { background: rgba(255,255,255,0.15); transform: translateY(-2px); }
+
+        /* Control Buttons */
+        .control-btn {
+            background: rgba(255,255,255,0.1); border: 1px solid #444; color: white;
+            padding: 10px 15px; border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+            transition: all 0.3s ease; min-width: 40px; display: flex; align-items: center; gap: 5px;
+        }
+        .control-btn:hover { background: rgba(0, 210, 255, 0.2); border-color: #00d2ff; }
+        .control-btn:active { transform: scale(0.95); }
+
+        /* Volume Control */
+        .volume-control {
+            display: flex; align-items: center; gap: 8px; background: rgba(10, 20, 30, 0.6);
+            padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(100, 200, 255, 0.2);
+        }
+        .volume-slider { width: 80px; }
+
+        /* Notification */
+        .notification {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0, 210, 255, 0.95); color: white; padding: 15px 25px;
+            border-radius: 8px; font-size: 0.9rem; z-index: 300; display: none;
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.5); animation: fadeInOut 2s ease;
+        }
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            10%, 90% { opacity: 1; }
+        }
+
+        /* Help Button */
+        .help-btn {
+            position: fixed; bottom: 20px; right: 20px; width: 40px; height: 40px;
+            background: rgba(0, 210, 255, 0.8); border: none; border-radius: 50%;
+            color: white; font-size: 1.2rem; cursor: pointer; z-index: 100;
+            box-shadow: 0 4px 15px rgba(0, 210, 255, 0.4); transition: all 0.3s ease;
+        }
+        .help-btn:hover { transform: scale(1.1); background: rgba(0, 210, 255, 1); }
+
+        /* Help Modal */
+        .help-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(15, 25, 35, 0.98); border: 2px solid #00d2ff; border-radius: 12px;
+            padding: 25px; width: 90%; max-width: 450px; color: #eee;
+            box-shadow: 0 0 50px rgba(0, 210, 255, 0.5); display: none; z-index: 250;
+        }
+        .help-modal h3 { margin: 0 0 15px 0; color: #00d2ff; font-size: 1.3rem; }
+        .help-modal .shortcut { display: flex; justify-content: space-between; margin: 8px 0; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; }
+        .help-modal .key { background: rgba(0, 210, 255, 0.2); padding: 3px 8px; border-radius: 3px; font-family: monospace; color: #00d2ff; }
 
         .timeline-container { width: 100%; }
         
@@ -222,11 +272,24 @@
                 </div>
                 <input type="range" id="timeline" min="0" max="100" value="0" step="0.1">
             </div>
-            
+
             <div class="controls-row">
                 <button class="toggle-btn active" id="btn-real" onclick="setMode('real')">Real</button>
                 <button class="toggle-btn" id="btn-temp" onclick="setMode('temp')">Temp</button>
                 <button class="toggle-btn" id="btn-precip" onclick="setMode('precip')">Rain</button>
+            </div>
+
+            <div class="controls-row">
+                <button class="control-btn" id="pause-btn" onclick="togglePause()">
+                    <span id="pause-icon">⏸️</span> <span id="pause-text">Pause</span>
+                </button>
+                <button class="control-btn" onclick="takeScreenshot()">
+                    📷 Shot
+                </button>
+                <div class="volume-control">
+                    <span style="font-size: 0.9rem;" id="volume-icon">🔊</span>
+                    <input type="range" class="volume-slider" id="volume-slider" min="0" max="100" value="50" step="1">
+                </div>
             </div>
         </div>
     </div>
@@ -236,6 +299,31 @@
         <span class="close-modal" onclick="closeReportModal()">&times;</span>
         <h2 style="margin-top:0; color:#00d2ff; font-size: 1.2rem;">Analysis <span style="font-size:0.6em; background:#4285F4; padding:2px 5px; border-radius:3px; color:white;">AI</span></h2>
         <div id="report-content" style="overflow-y:auto; max-height:60vh; line-height:1.5; font-size:0.9rem;"></div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="notification" class="notification"></div>
+
+    <!-- Help Button -->
+    <button class="help-btn" onclick="toggleHelp()">?</button>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="help-modal">
+        <span class="close-modal" onclick="toggleHelp()" style="cursor:pointer;">&times;</span>
+        <h3>⌨️ Keyboard Shortcuts</h3>
+        <div class="shortcut"><span>Pause/Resume</span><span class="key">SPACE</span></div>
+        <div class="shortcut"><span>Screenshot</span><span class="key">S</span></div>
+        <div class="shortcut"><span>Mute/Unmute</span><span class="key">M</span></div>
+        <div class="shortcut"><span>Real View</span><span class="key">1</span></div>
+        <div class="shortcut"><span>Temperature Map</span><span class="key">2</span></div>
+        <div class="shortcut"><span>Precipitation Map</span><span class="key">3</span></div>
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #444; font-size: 0.85rem; color: #aaa;">
+            <strong style="color: #00d2ff;">💡 Tips:</strong><br>
+            • Drag to rotate the Earth<br>
+            • Scroll to zoom in/out<br>
+            • Use AI Controller for custom scenarios<br>
+            • Generate climate reports with the ✨ Report button
+        </div>
     </div>
 
     <!-- Shaders -->
@@ -339,8 +427,121 @@
             year: 0,
             globalTemp: 0,
             weatherIntensity: 0.5,
-            disasterMode: null
+            disasterMode: null,
+            isPaused: false
         };
+
+        // ====== SOUND SYSTEM ======
+        class SoundSystem {
+            constructor() {
+                this.audioContext = null;
+                this.sounds = {};
+                this.masterGain = null;
+                this.ambientSource = null;
+                this.initialized = false;
+            }
+
+            async init() {
+                if (this.initialized) return;
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.masterGain = this.audioContext.createGain();
+                    this.masterGain.connect(this.audioContext.destination);
+                    this.masterGain.gain.value = 0.5;
+
+                    // Create oscillator-based sounds (no external files needed)
+                    this.createSynthSounds();
+                    this.startAmbient();
+                    this.initialized = true;
+                } catch (e) {
+                    console.warn("Audio not available:", e);
+                }
+            }
+
+            createSynthSounds() {
+                // These are procedurally generated sounds
+                this.sounds = {
+                    click: () => this.playTone(800, 0.05, 'sine', 0.15),
+                    mode: () => this.playTone(1000, 0.1, 'sine', 0.2),
+                    success: () => this.playChord([523.25, 659.25, 783.99], 0.3, 0.15),
+                    error: () => this.playTone(200, 0.2, 'sawtooth', 0.2)
+                };
+            }
+
+            playTone(frequency, duration, type = 'sine', volume = 0.2) {
+                if (!this.audioContext) return;
+                const osc = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+
+                osc.connect(gainNode);
+                gainNode.connect(this.masterGain);
+
+                osc.frequency.value = frequency;
+                osc.type = type;
+
+                gainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+
+                osc.start(this.audioContext.currentTime);
+                osc.stop(this.audioContext.currentTime + duration);
+            }
+
+            playChord(frequencies, duration, volume = 0.15) {
+                frequencies.forEach(freq => this.playTone(freq, duration, 'sine', volume / frequencies.length));
+            }
+
+            startAmbient() {
+                if (!this.audioContext || this.ambientSource) return;
+
+                // Create a subtle ambient drone
+                const osc1 = this.audioContext.createOscillator();
+                const osc2 = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+                const filter = this.audioContext.createBiquadFilter();
+
+                osc1.type = 'sine';
+                osc1.frequency.value = 55; // Low A
+                osc2.type = 'sine';
+                osc2.frequency.value = 110; // A
+
+                filter.type = 'lowpass';
+                filter.frequency.value = 500;
+
+                gainNode.gain.value = 0.03;
+
+                osc1.connect(filter);
+                osc2.connect(filter);
+                filter.connect(gainNode);
+                gainNode.connect(this.masterGain);
+
+                osc1.start();
+                osc2.start();
+
+                this.ambientSource = { osc1, osc2, gainNode };
+            }
+
+            stopAmbient() {
+                if (this.ambientSource) {
+                    this.ambientSource.osc1.stop();
+                    this.ambientSource.osc2.stop();
+                    this.ambientSource = null;
+                }
+            }
+
+            setVolume(value) {
+                if (this.masterGain) {
+                    this.masterGain.gain.value = value;
+                }
+            }
+
+            play(soundName) {
+                if (this.sounds[soundName]) {
+                    this.sounds[soundName]();
+                }
+            }
+        }
+
+        const soundSystem = new SoundSystem();
 
         function init() {
             scene = new THREE.Scene();
@@ -386,6 +587,14 @@
                 document.getElementById('loading').style.display = 'none';
                 initRealtimeWeather(); // Start Weather Service
                 animate();
+
+                // Welcome message
+                setTimeout(() => {
+                    showNotification('🌍 Welcome! Press ? for help');
+                }, 500);
+            }).catch(error => {
+                console.error("Failed to load textures:", error);
+                document.getElementById('loading').innerHTML = '<div class="loader"></div><div>❌ Failed to load resources. Please refresh the page.</div>';
             });
 
             setupUI();
@@ -550,7 +759,90 @@
             return "🌡️";
         }
 
+        // ====== UI HELPER FUNCTIONS ======
+        function showNotification(message) {
+            const notif = document.getElementById('notification');
+            notif.innerText = message;
+            notif.style.display = 'block';
+            setTimeout(() => { notif.style.display = 'none'; }, 2000);
+        }
+
+        function togglePause() {
+            state.isPaused = !state.isPaused;
+            const pauseIcon = document.getElementById('pause-icon');
+            const pauseText = document.getElementById('pause-text');
+
+            if (state.isPaused) {
+                pauseIcon.innerText = '▶️';
+                pauseText.innerText = 'Play';
+                showNotification('Simulation Paused');
+                soundSystem.play('click');
+            } else {
+                pauseIcon.innerText = '⏸️';
+                pauseText.innerText = 'Pause';
+                showNotification('Simulation Resumed');
+                soundSystem.play('click');
+            }
+        }
+
+        function takeScreenshot() {
+            soundSystem.play('success');
+            showNotification('Capturing Screenshot...');
+
+            renderer.render(scene, camera);
+            renderer.domElement.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                link.download = `earth-sim-${timestamp}.png`;
+                link.href = url;
+                link.click();
+                URL.revokeObjectURL(url);
+                showNotification('Screenshot Saved! 📸');
+            });
+        }
+
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Space: Pause/Play
+                if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    togglePause();
+                }
+                // S: Screenshot
+                if (e.key === 's' && e.target.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    takeScreenshot();
+                }
+                // 1, 2, 3: Mode switching
+                if (e.key === '1') setMode('real');
+                if (e.key === '2') setMode('temp');
+                if (e.key === '3') setMode('precip');
+                // M: Mute/Unmute
+                if (e.key === 'm' && e.target.tagName !== 'INPUT') {
+                    const volumeSlider = document.getElementById('volume-slider');
+                    volumeSlider.value = volumeSlider.value > 0 ? 0 : 50;
+                    volumeSlider.dispatchEvent(new Event('input'));
+                }
+                // H or ?: Help
+                if ((e.key === 'h' || e.key === '?') && e.target.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    toggleHelp();
+                }
+                // ESC: Close modals
+                if (e.key === 'Escape') {
+                    document.getElementById('help-modal').style.display = 'none';
+                    document.getElementById('report-modal').style.display = 'none';
+                }
+            });
+        }
+
         function setupUI() {
+            // Initialize sound system on first user interaction
+            document.addEventListener('click', () => {
+                soundSystem.init();
+            }, { once: true });
+
             const timeline = document.getElementById('timeline');
             timeline.addEventListener('input', (e) => {
                 const val = parseFloat(e.target.value);
@@ -561,14 +853,29 @@
                 updateClimateVisuals();
             });
 
+            // Volume Control
+            const volumeSlider = document.getElementById('volume-slider');
+            const volumeIcon = document.getElementById('volume-icon');
+            volumeSlider.addEventListener('input', (e) => {
+                const vol = parseFloat(e.target.value) / 100;
+                soundSystem.setVolume(vol);
+
+                if (vol === 0) volumeIcon.innerText = '🔇';
+                else if (vol < 0.3) volumeIcon.innerText = '🔈';
+                else if (vol < 0.7) volumeIcon.innerText = '🔉';
+                else volumeIcon.innerText = '🔊';
+            });
+
             const input = document.getElementById('ai-input');
             input.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     runGeminiScenario(input.value);
                     input.value = '';
-                    input.blur(); 
+                    input.blur();
                 }
             });
+
+            setupKeyboardShortcuts();
 
             const gui = new dat.GUI({ autoPlace: false, width: 250 });
             gui.domElement.id = 'dat-gui';
@@ -587,10 +894,21 @@
         }
 
         function setMode(mode) {
+            soundSystem.play('mode');
+
             document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('btn-' + mode).classList.add('active');
 
             if (!earthMesh) return;
+
+            const modeNames = {
+                'real': 'Real Earth View',
+                'temp': 'Temperature Map',
+                'precip': 'Precipitation Map'
+            };
+
+            showNotification(modeNames[mode] || 'Mode Changed');
+
             if (mode === 'real') {
                 earthMesh.material = materialReal;
                 cloudMesh.visible = true; atmosphereMesh.visible = true;
@@ -604,72 +922,141 @@
         }
 
         async function callGemini(prompt, systemInstruction) {
+            if (!apiKey || apiKey === "") {
+                showNotification('⚠️ API Key Required');
+                soundSystem.play('error');
+                return null;
+            }
+
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
             const payload = {
                 contents: [{ parts: [{ text: prompt }] }],
                 systemInstruction: { parts: [{ text: systemInstruction }] }
             };
+
             try {
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                if (!response.ok) throw new Error('API Error');
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error("API Error:", response.status, errorText);
+                    throw new Error(`API Error: ${response.status}`);
+                }
+
                 const data = await response.json();
+
+                if (!data.candidates || !data.candidates[0]) {
+                    throw new Error('Invalid API response');
+                }
+
                 return data.candidates[0].content.parts[0].text;
             } catch (error) {
                 console.error("Gemini Error:", error);
+                soundSystem.play('error');
+                showNotification('❌ AI Request Failed');
                 return null;
             }
         }
 
         async function runGeminiScenario(userInput) {
+            if (!userInput || userInput.trim() === '') return;
+
             const inputEl = document.getElementById('ai-input');
             const originalPlaceholder = inputEl.placeholder;
-            inputEl.placeholder = "Processing...";
+            inputEl.placeholder = "🤖 Processing...";
             inputEl.disabled = true;
 
-            const systemPrompt = `You are a physics simulation controller. Output JSON only. 
+            soundSystem.play('click');
+            showNotification('Processing AI Scenario...');
+
+            const systemPrompt = `You are a physics simulation controller. Output JSON only.
             Fields: "cloudDensity" (0-1), "windSpeed" (0-5), "atmosphereColor" (hex), "cloudColor" (hex), "globalTemp" (0-1), "description".`;
 
             const rawResponse = await callGemini(`User Scenario: ${userInput}`, systemPrompt);
-            
+
             if (rawResponse) {
                 try {
                     const jsonStr = rawResponse.replace(/```json/g, '').replace(/```/g, '').trim();
                     const params = JSON.parse(jsonStr);
-                    if (cloudMesh) {
+
+                    if (cloudMesh && params.cloudDensity !== undefined) {
                         cloudMesh.material.opacity = params.cloudDensity;
-                        cloudMesh.material.color.set(params.cloudColor);
+                        if (params.cloudColor) cloudMesh.material.color.set(params.cloudColor);
                     }
-                    if (atmosphereMesh) atmosphereMesh.material.uniforms.uColor.value.set(params.atmosphereColor);
-                    CONFIG.cloudSpeed = 0.0007 * params.windSpeed;
-                    state.globalTemp = params.globalTemp;
-                    updateClimateVisuals();
+                    if (atmosphereMesh && params.atmosphereColor) {
+                        atmosphereMesh.material.uniforms.uColor.value.set(params.atmosphereColor);
+                    }
+                    if (params.windSpeed !== undefined) {
+                        CONFIG.cloudSpeed = 0.0007 * params.windSpeed;
+                    }
+                    if (params.globalTemp !== undefined) {
+                        state.globalTemp = params.globalTemp;
+                        updateClimateVisuals();
+                    }
+
                     inputEl.value = "";
-                    inputEl.placeholder = `✓ ${params.description}`;
-                } catch (e) { inputEl.placeholder = "Error"; }
+                    inputEl.placeholder = `✓ ${params.description || 'Applied'}`;
+                    soundSystem.play('success');
+                    showNotification('✨ ' + (params.description || 'Scenario Applied'));
+                } catch (e) {
+                    console.error("JSON Parse Error:", e);
+                    inputEl.placeholder = "❌ Parse Error";
+                    soundSystem.play('error');
+                    showNotification('⚠️ Invalid AI Response');
+                }
+            } else {
+                inputEl.placeholder = "❌ Failed";
             }
-            setTimeout(() => { inputEl.disabled = false; inputEl.placeholder = originalPlaceholder; }, 3000);
+
+            setTimeout(() => {
+                inputEl.disabled = false;
+                inputEl.placeholder = originalPlaceholder;
+            }, 3000);
         }
 
         async function generateFutureReport() {
+            soundSystem.play('click');
+
             const modal = document.getElementById('report-modal');
             const content = document.getElementById('report-content');
             modal.style.display = 'block';
-            content.innerHTML = '<div class="loader" style="width:20px;height:20px;"></div> analyzing...';
+            content.innerHTML = '<div class="loader" style="width:20px;height:20px;"></div> Analyzing climate data...';
 
             const currentYear = 2025 + Math.floor(state.year);
-            const prompt = `Year: ${currentYear}, Temp Rise: +${(state.year * 0.05).toFixed(1)}°C`;
-            const systemPrompt = "Write a very short, 3-sentence report on future life on Earth based on these stats.";
-            
+            const tempRise = (state.year * 0.05).toFixed(1);
+            const prompt = `Year: ${currentYear}, Temperature Rise: +${tempRise}°C above pre-industrial levels`;
+            const systemPrompt = "You are a climate scientist. Write a concise 3-4 sentence report on the predicted state of Earth's climate and ecosystems based on these projections. Be factual and realistic.";
+
             const response = await callGemini(prompt, systemPrompt);
-            if (response) content.innerHTML = marked.parse(response);
-            else content.innerHTML = "Connection failed.";
+
+            if (response) {
+                try {
+                    content.innerHTML = marked.parse(response);
+                    soundSystem.play('success');
+                } catch (e) {
+                    content.innerHTML = response;
+                }
+            } else {
+                content.innerHTML = "❌ Unable to generate report. Please check your API key and connection.";
+            }
         }
 
-        function closeReportModal() { document.getElementById('report-modal').style.display = 'none'; }
+        function closeReportModal() {
+            document.getElementById('report-modal').style.display = 'none';
+        }
+
+        function toggleHelp() {
+            const helpModal = document.getElementById('help-modal');
+            const isVisible = helpModal.style.display === 'block';
+            helpModal.style.display = isVisible ? 'none' : 'block';
+            if (!isVisible) {
+                soundSystem.play('click');
+            }
+        }
 
         function updateClimateVisuals() {
             if (materialTemp) materialTemp.uniforms.uGlobalTemp.value = state.globalTemp;
@@ -679,19 +1066,25 @@
         function animate() {
             requestAnimationFrame(animate);
             const time = performance.now() * 0.001;
-            if (earthMesh) {
-                earthMesh.rotation.y += CONFIG.rotationSpeed;
-                if (materialTemp) materialTemp.uniforms.uTime.value = time;
-                if (materialPrecip) materialPrecip.uniforms.uTime.value = time;
+
+            // Only animate if not paused
+            if (!state.isPaused) {
+                if (earthMesh) {
+                    earthMesh.rotation.y += CONFIG.rotationSpeed;
+                    if (materialTemp) materialTemp.uniforms.uTime.value = time;
+                    if (materialPrecip) materialPrecip.uniforms.uTime.value = time;
+                }
+                if (cloudMesh) {
+                    cloudMesh.rotation.y += CONFIG.cloudSpeed;
+                    cloudMesh.rotation.x = Math.sin(time * 0.05) * 0.05;
+                }
+                if (moonPivot) {
+                    moonPivot.rotation.y += 0.0002;
+                    moonMesh.rotation.y += 0.001;
+                }
             }
-            if (cloudMesh) {
-                cloudMesh.rotation.y += CONFIG.cloudSpeed;
-                cloudMesh.rotation.x = Math.sin(time * 0.05) * 0.05;
-            }
-            if (moonPivot) {
-                moonPivot.rotation.y += 0.0002; 
-                moonMesh.rotation.y += 0.001; 
-            }
+
+            // Always update controls and render
             controls.update();
             renderer.render(scene, camera);
         }
