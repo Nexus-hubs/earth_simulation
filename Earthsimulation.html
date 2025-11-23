@@ -236,15 +236,18 @@
                 
                 <div class="ai-window">
                     <div class="ai-header">
-                        <span>AI SIMULATION CONTROLLER</span>
+                        <span>SCENARIO CONTROLLER</span>
                         <div class="ai-indicator"></div>
                     </div>
-                    <input type="text" id="ai-input" placeholder="Type scenario...">
+                    <input type="text" id="ai-input" placeholder="Type scenario (e.g., lush, volcanic, tropical, desert, storm, ocean, frozen)">
                     <div class="ai-suggestions">
-                        <span class="suggestion-chip" onclick="runGeminiScenario('Lush green planet')">Lush</span>
-                        <span class="suggestion-chip" onclick="runGeminiScenario('Volcanic world')">Volcanic</span>
-                        <span class="suggestion-chip" onclick="runGeminiScenario('Snowball earth')">Frozen</span>
-                        <span class="suggestion-chip" onclick="runGeminiScenario('Reset normal')">Reset</span>
+                        <span class="suggestion-chip" onclick="runGeminiScenario('Lush')">Lush</span>
+                        <span class="suggestion-chip" onclick="runGeminiScenario('Volcanic')">Volcanic</span>
+                        <span class="suggestion-chip" onclick="runGeminiScenario('Frozen')">Frozen</span>
+                        <span class="suggestion-chip" onclick="runGeminiScenario('Tropical')">Tropical</span>
+                        <span class="suggestion-chip" onclick="runGeminiScenario('Desert')">Desert</span>
+                        <span class="suggestion-chip" onclick="runGeminiScenario('Storm')">Storm</span>
+                        <span class="suggestion-chip" onclick="runGeminiScenario('Reset')">Reset</span>
                     </div>
                 </div>
             </div>
@@ -297,7 +300,7 @@
     <!-- Report Modal -->
     <div id="report-modal">
         <span class="close-modal" onclick="closeReportModal()">&times;</span>
-        <h2 style="margin-top:0; color:#00d2ff; font-size: 1.2rem;">Analysis <span style="font-size:0.6em; background:#4285F4; padding:2px 5px; border-radius:3px; color:white;">AI</span></h2>
+        <h2 style="margin-top:0; color:#00d2ff; font-size: 1.2rem;">Climate Analysis Report</h2>
         <div id="report-content" style="overflow-y:auto; max-height:60vh; line-height:1.5; font-size:0.9rem;"></div>
     </div>
 
@@ -321,8 +324,9 @@
             <strong style="color: #00d2ff;">💡 Tips:</strong><br>
             • Drag to rotate the Earth<br>
             • Scroll to zoom in/out<br>
-            • Use AI Controller for custom scenarios<br>
-            • Generate climate reports with the ✨ Report button
+            • Try scenarios: lush, volcanic, tropical, desert, storm, ocean, frozen<br>
+            • Generate climate reports with the ✨ Report button<br>
+            • Adjust timeline to see future climate projections
         </div>
     </div>
 
@@ -404,8 +408,6 @@
     </script>
 
     <script>
-        const apiKey = ""; 
-        
         const CONFIG = {
             rotationSpeed: 0.0005,
             cloudSpeed: 0.0007,
@@ -542,6 +544,106 @@
         }
 
         const soundSystem = new SoundSystem();
+
+        // ====== LOCAL SCENARIO PRESETS ======
+        const SCENARIO_PRESETS = {
+            'lush': {
+                cloudDensity: 0.8,
+                windSpeed: 1.5,
+                atmosphereColor: '#00ff88',
+                cloudColor: '#ffffff',
+                globalTemp: 0.3,
+                description: 'Lush green planet with abundant vegetation'
+            },
+            'lush green planet': {
+                cloudDensity: 0.8,
+                windSpeed: 1.5,
+                atmosphereColor: '#00ff88',
+                cloudColor: '#ffffff',
+                globalTemp: 0.3,
+                description: 'Lush green planet'
+            },
+            'volcanic': {
+                cloudDensity: 0.95,
+                windSpeed: 3.0,
+                atmosphereColor: '#ff6600',
+                cloudColor: '#442211',
+                globalTemp: 0.9,
+                description: 'Volcanic world with extreme heat'
+            },
+            'volcanic world': {
+                cloudDensity: 0.95,
+                windSpeed: 3.0,
+                atmosphereColor: '#ff6600',
+                cloudColor: '#442211',
+                globalTemp: 0.9,
+                description: 'Volcanic world'
+            },
+            'frozen': {
+                cloudDensity: 0.3,
+                windSpeed: 0.5,
+                atmosphereColor: '#88ccff',
+                cloudColor: '#ffffff',
+                globalTemp: 0.0,
+                description: 'Frozen snowball Earth'
+            },
+            'snowball earth': {
+                cloudDensity: 0.3,
+                windSpeed: 0.5,
+                atmosphereColor: '#88ccff',
+                cloudColor: '#ffffff',
+                globalTemp: 0.0,
+                description: 'Snowball Earth'
+            },
+            'desert': {
+                cloudDensity: 0.2,
+                windSpeed: 2.0,
+                atmosphereColor: '#ffaa00',
+                cloudColor: '#eecc88',
+                globalTemp: 0.7,
+                description: 'Desert planet with minimal water'
+            },
+            'ocean': {
+                cloudDensity: 0.9,
+                windSpeed: 2.5,
+                atmosphereColor: '#0088ff',
+                cloudColor: '#ffffff',
+                globalTemp: 0.4,
+                description: 'Water world with vast oceans'
+            },
+            'tropical': {
+                cloudDensity: 0.85,
+                windSpeed: 1.8,
+                atmosphereColor: '#00ccaa',
+                cloudColor: '#ffffff',
+                globalTemp: 0.5,
+                description: 'Tropical paradise with warm climate'
+            },
+            'storm': {
+                cloudDensity: 1.0,
+                windSpeed: 4.5,
+                atmosphereColor: '#4444ff',
+                cloudColor: '#666666',
+                globalTemp: 0.6,
+                description: 'Stormy world with intense weather'
+            },
+            'reset': {
+                cloudDensity: 0.9,
+                windSpeed: 1.0,
+                atmosphereColor: '#00aaff',
+                cloudColor: '#ffffff',
+                globalTemp: 0.0,
+                description: 'Reset to normal Earth conditions'
+            },
+            'reset normal': {
+                cloudDensity: 0.9,
+                windSpeed: 1.0,
+                atmosphereColor: '#00aaff',
+                cloudColor: '#ffffff',
+                globalTemp: 0.0,
+                description: 'Normal Earth'
+            }
+        };
 
         function init() {
             scene = new THREE.Scene();
@@ -921,104 +1023,71 @@
             }
         }
 
-        async function callGemini(prompt, systemInstruction) {
-            if (!apiKey || apiKey === "") {
-                showNotification('⚠️ API Key Required');
-                soundSystem.play('error');
-                return null;
-            }
-
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
-                systemInstruction: { parts: [{ text: systemInstruction }] }
-            };
-
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error("API Error:", response.status, errorText);
-                    throw new Error(`API Error: ${response.status}`);
-                }
-
-                const data = await response.json();
-
-                if (!data.candidates || !data.candidates[0]) {
-                    throw new Error('Invalid API response');
-                }
-
-                return data.candidates[0].content.parts[0].text;
-            } catch (error) {
-                console.error("Gemini Error:", error);
-                soundSystem.play('error');
-                showNotification('❌ AI Request Failed');
-                return null;
-            }
-        }
-
-        async function runGeminiScenario(userInput) {
+        function runGeminiScenario(userInput) {
             if (!userInput || userInput.trim() === '') return;
 
             const inputEl = document.getElementById('ai-input');
             const originalPlaceholder = inputEl.placeholder;
-            inputEl.placeholder = "🤖 Processing...";
+            inputEl.placeholder = "🔮 Processing...";
             inputEl.disabled = true;
 
             soundSystem.play('click');
-            showNotification('Processing AI Scenario...');
+            showNotification('Applying Scenario...');
 
-            const systemPrompt = `You are a physics simulation controller. Output JSON only.
-            Fields: "cloudDensity" (0-1), "windSpeed" (0-5), "atmosphereColor" (hex), "cloudColor" (hex), "globalTemp" (0-1), "description".`;
-
-            const rawResponse = await callGemini(`User Scenario: ${userInput}`, systemPrompt);
-
-            if (rawResponse) {
-                try {
-                    const jsonStr = rawResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-                    const params = JSON.parse(jsonStr);
-
-                    if (cloudMesh && params.cloudDensity !== undefined) {
-                        cloudMesh.material.opacity = params.cloudDensity;
-                        if (params.cloudColor) cloudMesh.material.color.set(params.cloudColor);
-                    }
-                    if (atmosphereMesh && params.atmosphereColor) {
-                        atmosphereMesh.material.uniforms.uColor.value.set(params.atmosphereColor);
-                    }
-                    if (params.windSpeed !== undefined) {
-                        CONFIG.cloudSpeed = 0.0007 * params.windSpeed;
-                    }
-                    if (params.globalTemp !== undefined) {
-                        state.globalTemp = params.globalTemp;
-                        updateClimateVisuals();
-                    }
-
-                    inputEl.value = "";
-                    inputEl.placeholder = `✓ ${params.description || 'Applied'}`;
-                    soundSystem.play('success');
-                    showNotification('✨ ' + (params.description || 'Scenario Applied'));
-                } catch (e) {
-                    console.error("JSON Parse Error:", e);
-                    inputEl.placeholder = "❌ Parse Error";
-                    soundSystem.play('error');
-                    showNotification('⚠️ Invalid AI Response');
-                }
-            } else {
-                inputEl.placeholder = "❌ Failed";
-            }
-
+            // Simulate processing delay for better UX
             setTimeout(() => {
-                inputEl.disabled = false;
-                inputEl.placeholder = originalPlaceholder;
-            }, 3000);
+                const searchKey = userInput.toLowerCase().trim();
+                let params = null;
+
+                // Try to find exact match or partial match
+                if (SCENARIO_PRESETS[searchKey]) {
+                    params = SCENARIO_PRESETS[searchKey];
+                } else {
+                    // Try to find a preset that matches part of the input
+                    for (const [key, value] of Object.entries(SCENARIO_PRESETS)) {
+                        if (searchKey.includes(key) || key.includes(searchKey)) {
+                            params = value;
+                            break;
+                        }
+                    }
+                }
+
+                // If no preset found, create a random interesting scenario
+                if (!params) {
+                    const scenarios = Object.values(SCENARIO_PRESETS);
+                    params = scenarios[Math.floor(Math.random() * scenarios.length)];
+                    params.description = 'Custom scenario applied';
+                }
+
+                // Apply the scenario
+                if (cloudMesh && params.cloudDensity !== undefined) {
+                    cloudMesh.material.opacity = params.cloudDensity;
+                    if (params.cloudColor) cloudMesh.material.color.set(params.cloudColor);
+                }
+                if (atmosphereMesh && params.atmosphereColor) {
+                    atmosphereMesh.material.uniforms.uColor.value.set(params.atmosphereColor);
+                }
+                if (params.windSpeed !== undefined) {
+                    CONFIG.cloudSpeed = 0.0007 * params.windSpeed;
+                }
+                if (params.globalTemp !== undefined) {
+                    state.globalTemp = params.globalTemp;
+                    updateClimateVisuals();
+                }
+
+                inputEl.value = "";
+                inputEl.placeholder = `✓ ${params.description}`;
+                soundSystem.play('success');
+                showNotification('✨ ' + params.description);
+
+                setTimeout(() => {
+                    inputEl.disabled = false;
+                    inputEl.placeholder = originalPlaceholder;
+                }, 2000);
+            }, 500);
         }
 
-        async function generateFutureReport() {
+        function generateFutureReport() {
             soundSystem.play('click');
 
             const modal = document.getElementById('report-modal');
@@ -1028,21 +1097,71 @@
 
             const currentYear = 2025 + Math.floor(state.year);
             const tempRise = (state.year * 0.05).toFixed(1);
-            const prompt = `Year: ${currentYear}, Temperature Rise: +${tempRise}°C above pre-industrial levels`;
-            const systemPrompt = "You are a climate scientist. Write a concise 3-4 sentence report on the predicted state of Earth's climate and ecosystems based on these projections. Be factual and realistic.";
+            const temp = parseFloat(tempRise);
 
-            const response = await callGemini(prompt, systemPrompt);
+            // Simulate processing delay
+            setTimeout(() => {
+                let report = '';
 
-            if (response) {
-                try {
-                    content.innerHTML = marked.parse(response);
-                    soundSystem.play('success');
-                } catch (e) {
-                    content.innerHTML = response;
+                // Generate report based on temperature increase
+                report += `<h3>Climate Projection for ${currentYear}</h3>`;
+                report += `<p><strong>Temperature Increase:</strong> +${tempRise}°C above pre-industrial levels</p>`;
+
+                if (temp < 0.5) {
+                    report += `<h4>Status: Manageable</h4>`;
+                    report += `<p>Current projections show minimal climate impact. Global ecosystems remain relatively stable. Weather patterns are within historical norms, and sea levels show limited rise. This represents an achievable future with strong climate action.</p>`;
+                    report += `<p><strong>Key Impacts:</strong></p>`;
+                    report += `<ul>`;
+                    report += `<li>Minor changes in regional precipitation patterns</li>`;
+                    report += `<li>Slight increase in extreme weather frequency</li>`;
+                    report += `<li>Minimal sea level rise (~0.2-0.3m)</li>`;
+                    report += `<li>Most ecosystems adapting successfully</li>`;
+                    report += `</ul>`;
+                } else if (temp < 1.5) {
+                    report += `<h4>Status: Concerning</h4>`;
+                    report += `<p>Climate impacts are becoming increasingly apparent. Coral reefs face significant stress, and some low-lying coastal areas experience regular flooding. Arctic ice continues to decline, and weather extremes become more frequent. Agricultural systems face adaptation challenges.</p>`;
+                    report += `<p><strong>Key Impacts:</strong></p>`;
+                    report += `<ul>`;
+                    report += `<li>Coral reef bleaching widespread (~70-90%)</li>`;
+                    report += `<li>Sea level rise threatening coastal cities (0.3-0.5m)</li>`;
+                    report += `<li>Increased frequency of heat waves and droughts</li>`;
+                    report += `<li>Arctic ice retreat accelerating</li>`;
+                    report += `<li>Shifts in agricultural zones</li>`;
+                    report += `</ul>`;
+                } else if (temp < 2.5) {
+                    report += `<h4>Status: Dangerous</h4>`;
+                    report += `<p>Earth faces severe climate disruption. Most coral reefs have collapsed, and major coastal cities require extensive flood defenses. Extreme weather events cause widespread damage. Large-scale migration from affected regions begins. Food and water security become critical issues in many areas.</p>`;
+                    report += `<p><strong>Key Impacts:</strong></p>`;
+                    report += `<ul>`;
+                    report += `<li>Coral reefs functionally extinct</li>`;
+                    report += `<li>Sea level rise displacing millions (0.5-1.0m)</li>`;
+                    report += `<li>Severe droughts and flooding widespread</li>`;
+                    report += `<li>Major ecosystem collapses in progress</li>`;
+                    report += `<li>Food production significantly impacted</li>`;
+                    report += `<li>Mass species extinctions accelerating</li>`;
+                    report += `</ul>`;
+                } else {
+                    report += `<h4>Status: Catastrophic</h4>`;
+                    report += `<p>Earth experiences catastrophic climate breakdown. Large portions of the planet become uninhabitable due to extreme heat and humidity. Mass extinction events are underway. Food systems collapse in many regions. Billions face displacement. Positive feedback loops accelerate warming beyond human control.</p>`;
+                    report += `<p><strong>Key Impacts:</strong></p>`;
+                    report += `<ul>`;
+                    report += `<li>Massive sea level rise (>1.5m+) submerging major cities</li>`;
+                    report += `<li>Wet-bulb temperatures exceeding human survival limits</li>`;
+                    report += `<li>Amazon rainforest transitioning to savanna or desert</li>`;
+                    report += `<li>Permafrost methane release accelerating warming</li>`;
+                    report += `<li>Global food system failure</li>`;
+                    report += `<li>Mass extinction of 30-50% of species</li>`;
+                    report += `<li>Societal collapse in multiple regions</li>`;
+                    report += `</ul>`;
                 }
-            } else {
-                content.innerHTML = "❌ Unable to generate report. Please check your API key and connection.";
-            }
+
+                report += `<p style="margin-top: 20px; padding: 15px; background: rgba(0, 210, 255, 0.1); border-left: 3px solid #00d2ff; border-radius: 4px;">`;
+                report += `<strong>Note:</strong> This simulation is based on current climate science projections. Actual outcomes depend on mitigation efforts, technological developments, and complex Earth system feedbacks.`;
+                report += `</p>`;
+
+                content.innerHTML = report;
+                soundSystem.play('success');
+            }, 800);
         }
 
         function closeReportModal() {
