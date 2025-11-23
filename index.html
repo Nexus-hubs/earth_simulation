@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Earth Climate & Weather Simulator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        /* UI Container */
+        #ui-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Top HUD */
+        .hud-top {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: auto;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .left-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 300px;
+            width: 100%;
+        }
+
+        .title-block h1 {
+            color: white; margin: 0; font-weight: 300; letter-spacing: 2px;
+            text-transform: uppercase; font-size: 1.2rem;
+            text-shadow: 0 0 10px rgba(0, 153, 255, 0.5);
+        }
+        .title-block p { color: #aaa; margin: 5px 0 0; font-size: 0.7rem; }
+
+        /* Weather Widget (New) */
+        .weather-card {
+            background: rgba(10, 20, 30, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 200, 255, 0.2);
+            border-radius: 12px;
+            padding: 10px 15px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            pointer-events: auto;
+            min-width: 120px;
+            justify-content: center;
+            transition: opacity 0.5s;
+        }
+        .weather-icon { font-size: 1.8rem; line-height: 1; }
+        .weather-info { display: flex; flex-direction: column; }
+        .weather-temp { font-size: 1.2rem; font-weight: bold; color: #00d2ff; }
+        .weather-loc { font-size: 0.65rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* AI Prompt Window - Mobile Optimized */
+        .ai-window {
+            background: rgba(10, 20, 30, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 200, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            width: 100%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+        
+        .ai-header { color: #00d2ff; font-size: 0.75rem; margin-bottom: 8px; display: flex; justify-content: space-between; }
+        .ai-indicator { width: 6px; height: 6px; background: #00d2ff; border-radius: 50%; box-shadow: 0 0 6px #00d2ff; animation: pulse 2s infinite; }
+        
+        #ai-input {
+            width: 100%; background: rgba(0,0,0,0.5); border: none; border-bottom: 1px solid #444;
+            color: white; padding: 8px; font-family: monospace; box-sizing: border-box; outline: none; font-size: 16px; /* Prevents zoom on iOS */
+        }
+        
+        .ai-suggestions { font-size: 0.65rem; color: #666; margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+        .suggestion-chip {
+            background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; cursor: pointer;
+        }
+        .suggestion-chip:active { background: rgba(0, 210, 255, 0.3); }
+
+        /* Bottom Controls - Thumb Friendly */
+        .hud-bottom {
+            padding: 20px;
+            background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding-bottom: env(safe-area-inset-bottom, 20px); /* iPhone X+ safe area */
+        }
+
+        .controls-row {
+            display: flex; gap: 10px; align-items: center; justify-content: center;
+        }
+
+        .toggle-btn {
+            background: rgba(255,255,255,0.1); border: 1px solid #444; color: white;
+            padding: 8px 12px; border-radius: 20px; cursor: pointer; font-size: 0.75rem;
+            flex: 1; text-align: center; max-width: 100px;
+            transition: all 0.3s ease;
+        }
+        .toggle-btn.active { background: rgba(0, 210, 255, 0.2); border-color: #00d2ff; color: #00d2ff; }
+        .toggle-btn:hover { background: rgba(255,255,255,0.15); transform: translateY(-2px); }
+
+        /* Control Buttons */
+        .control-btn {
+            background: rgba(255,255,255,0.1); border: 1px solid #444; color: white;
+            padding: 10px 15px; border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+            transition: all 0.3s ease; min-width: 40px; display: flex; align-items: center; gap: 5px;
+        }
+        .control-btn:hover { background: rgba(0, 210, 255, 0.2); border-color: #00d2ff; }
+        .control-btn:active { transform: scale(0.95); }
+
+        /* Volume Control */
+        .volume-control {
+            display: flex; align-items: center; gap: 8px; background: rgba(10, 20, 30, 0.6);
+            padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(100, 200, 255, 0.2);
+        }
+        .volume-slider { width: 80px; }
+
+        /* Notification */
+        .notification {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0, 210, 255, 0.95); color: white; padding: 15px 25px;
+            border-radius: 8px; font-size: 0.9rem; z-index: 300; display: none;
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.5); animation: fadeInOut 2s ease;
+        }
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            10%, 90% { opacity: 1; }
+        }
+
+        /* Help Button */
+        .help-btn {
+            position: fixed; bottom: 20px; right: 20px; width: 40px; height: 40px;
+            background: rgba(0, 210, 255, 0.8); border: none; border-radius: 50%;
+            color: white; font-size: 1.2rem; cursor: pointer; z-index: 100;
+            box-shadow: 0 4px 15px rgba(0, 210, 255, 0.4); transition: all 0.3s ease;
+        }
+        .help-btn:hover { transform: scale(1.1); background: rgba(0, 210, 255, 1); }
+
+        /* Help Modal */
+        .help-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(15, 25, 35, 0.98); border: 2px solid #00d2ff; border-radius: 12px;
+            padding: 25px; width: 90%; max-width: 450px; color: #eee;
+            box-shadow: 0 0 50px rgba(0, 210, 255, 0.5); display: none; z-index: 250;
+        }
+        .help-modal h3 { margin: 0 0 15px 0; color: #00d2ff; font-size: 1.3rem; }
+        .help-modal .shortcut { display: flex; justify-content: space-between; margin: 8px 0; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; }
+        .help-modal .key { background: rgba(0, 210, 255, 0.2); padding: 3px 8px; border-radius: 3px; font-family: monospace; color: #00d2ff; }
+
+        .timeline-container { width: 100%; }
+        
+        .timeline-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; }
+        .timeline-label { color: #00d2ff; font-size: 0.8rem; font-family: monospace; }
+        
+        .sparkle-btn {
+            background: linear-gradient(135deg, #00c6fb 0%, #005bea 100%); border: none; color: white;
+            padding: 6px 12px; border-radius: 4px; font-size: 0.75rem; font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0, 100, 255, 0.3);
+        }
+
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 24px; width: 24px; /* Larger hit area */
+            border-radius: 50%; background: #00d2ff; margin-top: -10px;
+            box-shadow: 0 0 10px #00d2ff;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; background: #333; border-radius: 2px;
+        }
+
+        /* Report Modal */
+        #report-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(15, 25, 35, 0.98); border: 1px solid #444; border-radius: 10px;
+            padding: 20px; width: 90%; max-width: 500px; max-height: 80vh;
+            color: #eee; box-shadow: 0 0 50px rgba(0,0,0,0.8); display: none; z-index: 200;
+        }
+        .close-modal { position: absolute; top: 10px; right: 15px; font-size: 1.5rem; padding: 10px; }
+        
+        /* Mobile Breakpoints */
+        @media (max-width: 600px) {
+            .hud-top { flex-direction: row; align-items: flex-start; }
+            .left-group { max-width: 60%; }
+            .weather-card { position: absolute; top: 15px; right: 15px; max-width: 35%; flex-direction: column; gap: 5px; text-align: center; }
+            .controls-row { justify-content: space-between; }
+        }
+
+        /* Loading */
+        #loading {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; display: flex; justify-content: center; align-items: center;
+            color: white; z-index: 100; flex-direction: column;
+        }
+        .loader {
+            width: 40px; height: 40px; border: 3px solid #333; border-top: 3px solid #00d2ff;
+            border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="loading">
+        <div class="loader"></div>
+        <div>Initializing System...</div>
+    </div>
+
+    <!-- UI Overlay -->
+    <div id="ui-container">
+        <div class="hud-top">
+            <div class="left-group">
+                <div class="title-block">
+                    <h1>Gaia Mobile</h1>
+                    <p>Real-time Atmospheric Sim</p>
+                </div>
+                
+                <div class="ai-window">
+                    <div class="ai-header">
+                        <span>SCENARIO CONTROLLER</span>
+                        <div class="ai-indicator"></div>
+                    </div>
+                    <input type="text" id="ai-input" placeholder="Type scenario (e.g., lush, volcanic, tropical, desert, storm, ocean, frozen)">
+                    <div class="ai-suggestions">
+                        <span class="suggestion-chip" onclick="runGeminiScenario('Lush')">Lush</span>
+                        <span class="suggestion-chip" onclick="runGeminiScenario('Volcanic')">Volcanic</span>
+                        <span class="suggestion-chip" onclick="runGeminiScenario('Frozen')">Frozen</span>
+                        <span class="suggestion-chip" onclick="runGeminiScenario('Tropical')">Tropical</span>
+                        <span class="suggestion-chip" onclick="runGeminiScenario('Desert')">Desert</span>
+                        <span class="suggestion-chip" onclick="runGeminiScenario('Storm')">Storm</span>
+                        <span class="suggestion-chip" onclick="runGeminiScenario('Reset')">Reset</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Weather Widget -->
+            <div class="weather-card" id="weather-widget">
+                <div class="weather-icon" id="weather-icon">--</div>
+                <div class="weather-info">
+                    <div class="weather-temp" id="weather-temp">--°C</div>
+                    <div class="weather-loc" id="weather-loc">Climate Data</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hud-bottom">
+            <div class="timeline-container">
+                <div class="timeline-header">
+                    <div class="timeline-label">
+                        <span id="year-display">2025</span>
+                        <span style="opacity:0.7; font-size: 0.7em"> (+<span id="deg-display">0.0</span>°C)</span>
+                    </div>
+                    <button class="sparkle-btn" onclick="generateFutureReport()">
+                        <span>✨ Report</span>
+                    </button>
+                </div>
+                <input type="range" id="timeline" min="0" max="100" value="0" step="0.1">
+            </div>
+
+            <div class="controls-row">
+                <button class="toggle-btn active" id="btn-real" onclick="setMode('real')">Real</button>
+                <button class="toggle-btn" id="btn-temp" onclick="setMode('temp')">Temp</button>
+                <button class="toggle-btn" id="btn-precip" onclick="setMode('precip')">Rain</button>
+            </div>
+
+            <div class="controls-row">
+                <button class="control-btn" id="pause-btn" onclick="togglePause()">
+                    <span id="pause-icon">⏸️</span> <span id="pause-text">Pause</span>
+                </button>
+                <button class="control-btn" onclick="takeScreenshot()">
+                    📷 Shot
+                </button>
+                <div class="volume-control">
+                    <span style="font-size: 0.9rem;" id="volume-icon">🔊</span>
+                    <input type="range" class="volume-slider" id="volume-slider" min="0" max="100" value="50" step="1">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Modal -->
+    <div id="report-modal">
+        <span class="close-modal" onclick="closeReportModal()">&times;</span>
+        <h2 style="margin-top:0; color:#00d2ff; font-size: 1.2rem;">Climate Analysis Report</h2>
+        <div id="report-content" style="overflow-y:auto; max-height:60vh; line-height:1.5; font-size:0.9rem;"></div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="notification" class="notification"></div>
+
+    <!-- Help Button -->
+    <button class="help-btn" onclick="toggleHelp()">?</button>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="help-modal">
+        <span class="close-modal" onclick="toggleHelp()" style="cursor:pointer;">&times;</span>
+        <h3>⌨️ Keyboard Shortcuts</h3>
+        <div class="shortcut"><span>Pause/Resume</span><span class="key">SPACE</span></div>
+        <div class="shortcut"><span>Screenshot</span><span class="key">S</span></div>
+        <div class="shortcut"><span>Mute/Unmute</span><span class="key">M</span></div>
+        <div class="shortcut"><span>Real View</span><span class="key">1</span></div>
+        <div class="shortcut"><span>Temperature Map</span><span class="key">2</span></div>
+        <div class="shortcut"><span>Precipitation Map</span><span class="key">3</span></div>
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #444; font-size: 0.85rem; color: #aaa;">
+            <strong style="color: #00d2ff;">💡 Tips:</strong><br>
+            • Drag to rotate the Earth<br>
+            • Scroll to zoom in/out<br>
+            • Try scenarios: lush, volcanic, tropical, desert, storm, ocean, frozen<br>
+            • Generate climate reports with the ✨ Report button<br>
+            • Adjust timeline to see future climate projections
+        </div>
+    </div>
+
+    <!-- Shaders -->
+    <script type="x-shader/x-vertex" id="vertexShader">
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            vNormal = normalize(normalMatrix * normal);
+            vPosition = position;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="atmosphereFragmentShader">
+        varying vec3 vNormal;
+        uniform vec3 uColor;
+        uniform float uIntensity;
+        void main() {
+            float intensity = pow(0.55 - dot(vNormal, vec3(0, 0, 1.0)), 4.0);
+            gl_FragColor = vec4(uColor, 1.0) * intensity * uIntensity;
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="tempFragmentShader">
+        varying vec2 vUv;
+        uniform float uTime;
+        uniform float uGlobalTemp;
+        float random (in vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); }
+        float noise (in vec2 st) {
+            vec2 i = floor(st);
+            vec2 f = fract(st);
+            float a = random(i);
+            float b = random(i + vec2(1.0, 0.0));
+            float c = random(i + vec2(0.0, 1.0));
+            float d = random(i + vec2(1.0, 1.0));
+            vec2 u = f * f * (3.0 - 2.0 * f);
+            return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+        }
+        void main() {
+            float lat = abs(vUv.y - 0.5) * 2.0;
+            float baseTemp = 1.0 - lat;
+            float n = noise(vUv * 8.0 + uTime * 0.1); 
+            float effectiveTemp = baseTemp + (n * 0.2) + (uGlobalTemp * 0.4);
+            vec3 color;
+            if (effectiveTemp < 0.3) color = mix(vec3(0.0, 0.0, 0.8), vec3(0.0, 0.8, 1.0), effectiveTemp / 0.3);
+            else if (effectiveTemp < 0.6) color = mix(vec3(0.0, 0.8, 1.0), vec3(1.0, 1.0, 0.0), (effectiveTemp - 0.3) / 0.3);
+            else color = mix(vec3(1.0, 1.0, 0.0), vec3(1.0, 0.0, 0.0), (effectiveTemp - 0.6) / 0.4);
+            gl_FragColor = vec4(color, 1.0);
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="precipFragmentShader">
+        varying vec2 vUv;
+        uniform float uTime;
+        uniform float uGlobalTemp;
+        float random (in vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); }
+        float noise (in vec2 st) {
+            vec2 i = floor(st);
+            vec2 f = fract(st);
+            float a = random(i);
+            float b = random(i + vec2(1.0, 0.0));
+            float c = random(i + vec2(0.0, 1.0));
+            float d = random(i + vec2(1.0, 1.0));
+            vec2 u = f * f * (3.0 - 2.0 * f);
+            return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+        }
+        void main() {
+            float combined = noise(vUv * 15.0 + vec2(uTime * 0.1, 0.0));
+            float moisture = combined;
+            vec3 col;
+            if (moisture < 0.4 - (uGlobalTemp * 0.1)) col = vec3(0.6, 0.5, 0.3);
+            else if (moisture < 0.6) col = vec3(0.9, 0.9, 0.9);
+            else col = mix(vec3(0.0, 0.5, 1.0), vec3(0.0, 0.0, 0.6), (moisture - 0.6) * 2.5);
+            gl_FragColor = vec4(col, 1.0);
+        }
+    </script>
+
+    <script>
+        const CONFIG = {
+            rotationSpeed: 0.0005,
+            cloudSpeed: 0.0007,
+            radius: 5,
+            urls: {
+                earth: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg',
+                normal: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_normal_2048.jpg',
+                specular: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_specular_2048.jpg',
+                clouds: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_clouds_1024.png',
+                moon: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/moon_1024.jpg'
+            }
+        };
+
+        let scene, camera, renderer, controls;
+        let earthMesh, cloudMesh, atmosphereMesh, moonMesh, moonPivot;
+        let materialReal, materialTemp, materialPrecip;
+        
+        const state = {
+            year: 0,
+            globalTemp: 0,
+            weatherIntensity: 0.5,
+            disasterMode: null,
+            isPaused: false
+        };
+
+        // ====== SOUND SYSTEM ======
+        class SoundSystem {
+            constructor() {
+                this.audioContext = null;
+                this.sounds = {};
+                this.masterGain = null;
+                this.ambientSource = null;
+                this.initialized = false;
+            }
+
+            async init() {
+                if (this.initialized) return;
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.masterGain = this.audioContext.createGain();
+                    this.masterGain.connect(this.audioContext.destination);
+                    this.masterGain.gain.value = 0.5;
+
+                    // Create oscillator-based sounds (no external files needed)
+                    this.createSynthSounds();
+                    this.startAmbient();
+                    this.initialized = true;
+                } catch (e) {
+                    console.warn("Audio not available:", e);
+                }
+            }
+
+            createSynthSounds() {
+                // These are procedurally generated sounds
+                this.sounds = {
+                    click: () => this.playTone(800, 0.05, 'sine', 0.15),
+                    mode: () => this.playTone(1000, 0.1, 'sine', 0.2),
+                    success: () => this.playChord([523.25, 659.25, 783.99], 0.3, 0.15),
+                    error: () => this.playTone(200, 0.2, 'sawtooth', 0.2)
+                };
+            }
+
+            playTone(frequency, duration, type = 'sine', volume = 0.2) {
+                if (!this.audioContext) return;
+                const osc = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+
+                osc.connect(gainNode);
+                gainNode.connect(this.masterGain);
+
+                osc.frequency.value = frequency;
+                osc.type = type;
+
+                gainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+
+                osc.start(this.audioContext.currentTime);
+                osc.stop(this.audioContext.currentTime + duration);
+            }
+
+            playChord(frequencies, duration, volume = 0.15) {
+                frequencies.forEach(freq => this.playTone(freq, duration, 'sine', volume / frequencies.length));
+            }
+
+            startAmbient() {
+                if (!this.audioContext || this.ambientSource) return;
+
+                // Create a subtle ambient drone
+                const osc1 = this.audioContext.createOscillator();
+                const osc2 = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+                const filter = this.audioContext.createBiquadFilter();
+
+                osc1.type = 'sine';
+                osc1.frequency.value = 55; // Low A
+                osc2.type = 'sine';
+                osc2.frequency.value = 110; // A
+
+                filter.type = 'lowpass';
+                filter.frequency.value = 500;
+
+                gainNode.gain.value = 0.03;
+
+                osc1.connect(filter);
+                osc2.connect(filter);
+                filter.connect(gainNode);
+                gainNode.connect(this.masterGain);
+
+                osc1.start();
+                osc2.start();
+
+                this.ambientSource = { osc1, osc2, gainNode };
+            }
+
+            stopAmbient() {
+                if (this.ambientSource) {
+                    this.ambientSource.osc1.stop();
+                    this.ambientSource.osc2.stop();
+                    this.ambientSource = null;
+                }
+            }
+
+            setVolume(value) {
+                if (this.masterGain) {
+                    this.masterGain.gain.value = value;
+                }
+            }
+
+            play(soundName) {
+                if (this.sounds[soundName]) {
+                    this.sounds[soundName]();
+                }
+            }
+        }
+
+        const soundSystem = new SoundSystem();
+
+        // ====== LOCAL SCENARIO PRESETS ======
+        const SCENARIO_PRESETS = {
+            'lush': {
+                cloudDensity: 0.8,
+                windSpeed: 1.5,
+                atmosphereColor: '#00ff88',
+                cloudColor: '#ffffff',
+                globalTemp: 0.3,
+                description: 'Lush green planet with abundant vegetation'
+            },
+            'lush green planet': {
+                cloudDensity: 0.8,
+                windSpeed: 1.5,
+                atmosphereColor: '#00ff88',
+                cloudColor: '#ffffff',
+                globalTemp: 0.3,
+                description: 'Lush green planet'
+            },
+            'volcanic': {
+                cloudDensity: 0.95,
+                windSpeed: 3.0,
+                atmosphereColor: '#ff6600',
+                cloudColor: '#442211',
+                globalTemp: 0.9,
+                description: 'Volcanic world with extreme heat'
+            },
+            'volcanic world': {
+                cloudDensity: 0.95,
+                windSpeed: 3.0,
+                atmosphereColor: '#ff6600',
+                cloudColor: '#442211',
+                globalTemp: 0.9,
+                description: 'Volcanic world'
+            },
+            'frozen': {
+                cloudDensity: 0.3,
+                windSpeed: 0.5,
+                atmosphereColor: '#88ccff',
+                cloudColor: '#ffffff',
+                globalTemp: 0.0,
+                description: 'Frozen snowball Earth'
+            },
+            'snowball earth': {
+                cloudDensity: 0.3,
+                windSpeed: 0.5,
+                atmosphereColor: '#88ccff',
+                cloudColor: '#ffffff',
+                globalTemp: 0.0,
+                description: 'Snowball Earth'
+            },
+            'desert': {
+                cloudDensity: 0.2,
+                windSpeed: 2.0,
+                atmosphereColor: '#ffaa00',
+                cloudColor: '#eecc88',
+                globalTemp: 0.7,
+                description: 'Desert planet with minimal water'
+            },
+            'ocean': {
+                cloudDensity: 0.9,
+                windSpeed: 2.5,
+                atmosphereColor: '#0088ff',
+                cloudColor: '#ffffff',
+                globalTemp: 0.4,
+                description: 'Water world with vast oceans'
+            },
+            'tropical': {
+                cloudDensity: 0.85,
+                windSpeed: 1.8,
+                atmosphereColor: '#00ccaa',
+                cloudColor: '#ffffff',
+                globalTemp: 0.5,
+                description: 'Tropical paradise with warm climate'
+            },
+            'storm': {
+                cloudDensity: 1.0,
+                windSpeed: 4.5,
+                atmosphereColor: '#4444ff',
+                cloudColor: '#666666',
+                globalTemp: 0.6,
+                description: 'Stormy world with intense weather'
+            },
+            'reset': {
+                cloudDensity: 0.9,
+                windSpeed: 1.0,
+                atmosphereColor: '#00aaff',
+                cloudColor: '#ffffff',
+                globalTemp: 0.0,
+                description: 'Reset to normal Earth conditions'
+            },
+            'reset normal': {
+                cloudDensity: 0.9,
+                windSpeed: 1.0,
+                atmosphereColor: '#00aaff',
+                cloudColor: '#ffffff',
+                globalTemp: 0.0,
+                description: 'Normal Earth'
+            }
+        };
+
+        function init() {
+            scene = new THREE.Scene();
+            
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(12, 4, 14); 
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 7;
+            controls.maxDistance = 25;
+
+            const ambientLight = new THREE.AmbientLight(0x333333);
+            scene.add(ambientLight);
+
+            const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            sunLight.position.set(50, 10, 30);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 1024;
+            sunLight.shadow.mapSize.height = 1024;
+            scene.add(sunLight);
+            
+            createStars();
+
+            const textureLoader = new THREE.TextureLoader();
+            
+            Promise.all([
+                loadTexture(textureLoader, CONFIG.urls.earth),
+                loadTexture(textureLoader, CONFIG.urls.normal),
+                loadTexture(textureLoader, CONFIG.urls.specular),
+                loadTexture(textureLoader, CONFIG.urls.clouds),
+                loadTexture(textureLoader, CONFIG.urls.moon)
+            ]).then(textures => {
+                createEarthSystem(textures);
+                document.getElementById('loading').style.display = 'none';
+                initRealtimeWeather(); // Start Weather Service
+                animate();
+
+                // Welcome message
+                setTimeout(() => {
+                    showNotification('🌍 Welcome! Press ? for help');
+                }, 500);
+            }).catch(error => {
+                console.error("Failed to load textures:", error);
+                document.getElementById('loading').innerHTML = '<div class="loader"></div><div>❌ Failed to load resources. Please refresh the page.</div>';
+            });
+
+            setupUI();
+        }
+
+        function loadTexture(loader, url) {
+            return new Promise(resolve => loader.load(url, resolve));
+        }
+
+        function createStars() {
+            const geometry = new THREE.BufferGeometry();
+            const count = 1000;
+            const positions = new Float32Array(count * 3);
+            for(let i=0; i<count*3; i++) positions[i] = (Math.random() - 0.5) * 800;
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({color: 0xffffff, size: 0.8, transparent: true, opacity: 0.8});
+            scene.add(new THREE.Points(geometry, material));
+        }
+
+        function createEarthSystem(textures) {
+            const [earthMap, normalMap, specularMap, cloudMap, moonMap] = textures;
+
+            // Earth
+            const earthGeo = new THREE.SphereGeometry(CONFIG.radius, 48, 48);
+            materialReal = new THREE.MeshPhongMaterial({
+                map: earthMap,
+                normalMap: normalMap,
+                specularMap: specularMap,
+                specular: new THREE.Color(0x333333),
+                shininess: 15
+            });
+
+            const shaderUniforms = { uTime: { value: 0 }, uGlobalTemp: { value: 0 } };
+            materialTemp = new THREE.ShaderMaterial({
+                vertexShader: document.getElementById('vertexShader').textContent,
+                fragmentShader: document.getElementById('tempFragmentShader').textContent,
+                uniforms: shaderUniforms
+            });
+
+            materialPrecip = new THREE.ShaderMaterial({
+                vertexShader: document.getElementById('vertexShader').textContent,
+                fragmentShader: document.getElementById('precipFragmentShader').textContent,
+                uniforms: shaderUniforms
+            });
+
+            earthMesh = new THREE.Mesh(earthGeo, materialReal);
+            earthMesh.receiveShadow = true;
+            scene.add(earthMesh);
+
+            // Clouds
+            const cloudGeo = new THREE.SphereGeometry(CONFIG.radius + 0.05, 48, 48);
+            const cloudMat = new THREE.MeshPhongMaterial({
+                map: cloudMap,
+                transparent: true,
+                opacity: 0.9,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+                blending: THREE.NormalBlending
+            });
+            cloudMesh = new THREE.Mesh(cloudGeo, cloudMat);
+            cloudMesh.castShadow = true;
+            scene.add(cloudMesh);
+
+            // Atmosphere
+            const atmoGeo = new THREE.SphereGeometry(CONFIG.radius + 1.2, 32, 32);
+            const atmoMat = new THREE.ShaderMaterial({
+                vertexShader: document.getElementById('vertexShader').textContent,
+                fragmentShader: document.getElementById('atmosphereFragmentShader').textContent,
+                uniforms: {
+                    uColor: { value: new THREE.Color(0x00aaff) },
+                    uIntensity: { value: 0.5 }
+                },
+                side: THREE.BackSide,
+                blending: THREE.AdditiveBlending,
+                transparent: true
+            });
+            atmosphereMesh = new THREE.Mesh(atmoGeo, atmoMat);
+            scene.add(atmosphereMesh);
+
+            // Moon
+            moonPivot = new THREE.Object3D();
+            scene.add(moonPivot);
+            const moonGeo = new THREE.SphereGeometry(1.35, 32, 32);
+            const moonMat = new THREE.MeshStandardMaterial({
+                map: moonMap,
+                roughness: 0.8
+            });
+            moonMesh = new THREE.Mesh(moonGeo, moonMat);
+            moonMesh.position.set(15, 0, 0); 
+            moonMesh.castShadow = true;
+            moonMesh.receiveShadow = true;
+            moonPivot.add(moonMesh);
+            moonPivot.rotation.z = 0.1; 
+        }
+
+        // --- LOCAL SIMULATED WEATHER ---
+        function initRealtimeWeather() {
+            updateSimulatedWeather();
+            // Update weather every 5 seconds based on current climate state
+            setInterval(updateSimulatedWeather, 5000);
+        }
+
+        function updateSimulatedWeather() {
+            const tempEl = document.getElementById('weather-temp');
+            const iconEl = document.getElementById('weather-icon');
+            const locEl = document.querySelector('.weather-loc');
+
+            // Base temperature affected by global temperature state
+            const baseTemp = 15; // Base temperature in Celsius
+            const tempVariation = state.globalTemp * 30; // Can add up to 30°C
+            const randomVariation = (Math.random() - 0.5) * 5; // ±2.5°C random variation
+            const currentTemp = Math.round(baseTemp + tempVariation + randomVariation);
+
+            tempEl.innerText = `${currentTemp}°C`;
+            locEl.innerText = "Simulated";
+
+            // Choose weather icon based on temperature and scenario
+            if (currentTemp > 30) {
+                iconEl.innerText = Math.random() > 0.7 ? "⛈️" : "☀️";
+            } else if (currentTemp > 20) {
+                iconEl.innerText = Math.random() > 0.5 ? "⛅" : "☀️";
+            } else if (currentTemp > 10) {
+                iconEl.innerText = Math.random() > 0.6 ? "🌧️" : "⛅";
+            } else if (currentTemp > 0) {
+                iconEl.innerText = Math.random() > 0.7 ? "🌧️" : "🌫️";
+            } else {
+                iconEl.innerText = Math.random() > 0.5 ? "❄️" : "🌨️";
+            }
+        }
+
+        // ====== UI HELPER FUNCTIONS ======
+        function showNotification(message) {
+            const notif = document.getElementById('notification');
+            notif.innerText = message;
+            notif.style.display = 'block';
+            setTimeout(() => { notif.style.display = 'none'; }, 2000);
+        }
+
+        function togglePause() {
+            state.isPaused = !state.isPaused;
+            const pauseIcon = document.getElementById('pause-icon');
+            const pauseText = document.getElementById('pause-text');
+
+            if (state.isPaused) {
+                pauseIcon.innerText = '▶️';
+                pauseText.innerText = 'Play';
+                showNotification('Simulation Paused');
+                soundSystem.play('click');
+            } else {
+                pauseIcon.innerText = '⏸️';
+                pauseText.innerText = 'Pause';
+                showNotification('Simulation Resumed');
+                soundSystem.play('click');
+            }
+        }
+
+        function takeScreenshot() {
+            soundSystem.play('success');
+            showNotification('Capturing Screenshot...');
+
+            renderer.render(scene, camera);
+            renderer.domElement.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                link.download = `earth-sim-${timestamp}.png`;
+                link.href = url;
+                link.click();
+                URL.revokeObjectURL(url);
+                showNotification('Screenshot Saved! 📸');
+            });
+        }
+
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Space: Pause/Play
+                if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    togglePause();
+                }
+                // S: Screenshot
+                if (e.key === 's' && e.target.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    takeScreenshot();
+                }
+                // 1, 2, 3: Mode switching
+                if (e.key === '1') setMode('real');
+                if (e.key === '2') setMode('temp');
+                if (e.key === '3') setMode('precip');
+                // M: Mute/Unmute
+                if (e.key === 'm' && e.target.tagName !== 'INPUT') {
+                    const volumeSlider = document.getElementById('volume-slider');
+                    volumeSlider.value = volumeSlider.value > 0 ? 0 : 50;
+                    volumeSlider.dispatchEvent(new Event('input'));
+                }
+                // H or ?: Help
+                if ((e.key === 'h' || e.key === '?') && e.target.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    toggleHelp();
+                }
+                // ESC: Close modals
+                if (e.key === 'Escape') {
+                    document.getElementById('help-modal').style.display = 'none';
+                    document.getElementById('report-modal').style.display = 'none';
+                }
+            });
+        }
+
+        function setupUI() {
+            // Initialize sound system on first user interaction
+            document.addEventListener('click', () => {
+                soundSystem.init();
+            }, { once: true });
+
+            const timeline = document.getElementById('timeline');
+            timeline.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                state.year = val;
+                state.globalTemp = val / 100;
+                document.getElementById('year-display').innerText = 2025 + Math.floor(val);
+                document.getElementById('deg-display').innerText = (val * 0.05).toFixed(1);
+                updateClimateVisuals();
+                updateSimulatedWeather();
+            });
+
+            // Volume Control
+            const volumeSlider = document.getElementById('volume-slider');
+            const volumeIcon = document.getElementById('volume-icon');
+            volumeSlider.addEventListener('input', (e) => {
+                const vol = parseFloat(e.target.value) / 100;
+                soundSystem.setVolume(vol);
+
+                if (vol === 0) volumeIcon.innerText = '🔇';
+                else if (vol < 0.3) volumeIcon.innerText = '🔈';
+                else if (vol < 0.7) volumeIcon.innerText = '🔉';
+                else volumeIcon.innerText = '🔊';
+            });
+
+            const input = document.getElementById('ai-input');
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    runGeminiScenario(input.value);
+                    input.value = '';
+                    input.blur();
+                }
+            });
+
+            setupKeyboardShortcuts();
+
+            const gui = new dat.GUI({ autoPlace: false, width: 250 });
+            gui.domElement.id = 'dat-gui';
+            document.getElementById('ui-container').appendChild(gui.domElement);
+            gui.domElement.style.pointerEvents = 'auto'; 
+            gui.domElement.style.position = 'absolute';
+            gui.domElement.style.top = '100px'; 
+            gui.domElement.style.right = '0';
+            gui.close(); 
+
+            const weatherParams = { cloudDensity: 0.9, windSpeed: 1.0, glowColor: '#00aaff' };
+            const folder = gui.addFolder('Atmosphere');
+            folder.add(weatherParams, 'cloudDensity', 0, 1).onChange(v => { if(cloudMesh) cloudMesh.material.opacity = v; });
+            folder.add(weatherParams, 'windSpeed', 0, 5).onChange(v => { CONFIG.cloudSpeed = 0.0007 * v; });
+            folder.addColor(weatherParams, 'glowColor').onChange(v => { if(atmosphereMesh) atmosphereMesh.material.uniforms.uColor.value.set(v); });
+        }
+
+        function setMode(mode) {
+            soundSystem.play('mode');
+
+            document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-' + mode).classList.add('active');
+
+            if (!earthMesh) return;
+
+            const modeNames = {
+                'real': 'Real Earth View',
+                'temp': 'Temperature Map',
+                'precip': 'Precipitation Map'
+            };
+
+            showNotification(modeNames[mode] || 'Mode Changed');
+
+            if (mode === 'real') {
+                earthMesh.material = materialReal;
+                cloudMesh.visible = true; atmosphereMesh.visible = true;
+            } else if (mode === 'temp') {
+                earthMesh.material = materialTemp;
+                cloudMesh.visible = false; atmosphereMesh.visible = false;
+            } else if (mode === 'precip') {
+                earthMesh.material = materialPrecip;
+                cloudMesh.visible = false; atmosphereMesh.visible = false;
+            }
+        }
+
+        function runGeminiScenario(userInput) {
+            if (!userInput || userInput.trim() === '') return;
+
+            const inputEl = document.getElementById('ai-input');
+            const originalPlaceholder = inputEl.placeholder;
+            inputEl.placeholder = "🔮 Processing...";
+            inputEl.disabled = true;
+
+            soundSystem.play('click');
+            showNotification('Applying Scenario...');
+
+            // Simulate processing delay for better UX
+            setTimeout(() => {
+                const searchKey = userInput.toLowerCase().trim();
+                let params = null;
+
+                // Try to find exact match or partial match
+                if (SCENARIO_PRESETS[searchKey]) {
+                    params = SCENARIO_PRESETS[searchKey];
+                } else {
+                    // Try to find a preset that matches part of the input
+                    for (const [key, value] of Object.entries(SCENARIO_PRESETS)) {
+                        if (searchKey.includes(key) || key.includes(searchKey)) {
+                            params = value;
+                            break;
+                        }
+                    }
+                }
+
+                // If no preset found, create a random interesting scenario
+                if (!params) {
+                    const scenarios = Object.values(SCENARIO_PRESETS);
+                    params = scenarios[Math.floor(Math.random() * scenarios.length)];
+                    params.description = 'Custom scenario applied';
+                }
+
+                // Apply the scenario
+                if (cloudMesh && params.cloudDensity !== undefined) {
+                    cloudMesh.material.opacity = params.cloudDensity;
+                    if (params.cloudColor) cloudMesh.material.color.set(params.cloudColor);
+                }
+                if (atmosphereMesh && params.atmosphereColor) {
+                    atmosphereMesh.material.uniforms.uColor.value.set(params.atmosphereColor);
+                }
+                if (params.windSpeed !== undefined) {
+                    CONFIG.cloudSpeed = 0.0007 * params.windSpeed;
+                }
+                if (params.globalTemp !== undefined) {
+                    state.globalTemp = params.globalTemp;
+                    updateClimateVisuals();
+                }
+
+                // Update weather widget to reflect new scenario
+                updateSimulatedWeather();
+
+                inputEl.value = "";
+                inputEl.placeholder = `✓ ${params.description}`;
+                soundSystem.play('success');
+                showNotification('✨ ' + params.description);
+
+                setTimeout(() => {
+                    inputEl.disabled = false;
+                    inputEl.placeholder = originalPlaceholder;
+                }, 2000);
+            }, 500);
+        }
+
+        function generateFutureReport() {
+            soundSystem.play('click');
+
+            const modal = document.getElementById('report-modal');
+            const content = document.getElementById('report-content');
+            modal.style.display = 'block';
+            content.innerHTML = '<div class="loader" style="width:20px;height:20px;"></div> Analyzing climate data...';
+
+            const currentYear = 2025 + Math.floor(state.year);
+            const tempRise = (state.year * 0.05).toFixed(1);
+            const temp = parseFloat(tempRise);
+
+            // Simulate processing delay
+            setTimeout(() => {
+                let report = '';
+
+                // Generate report based on temperature increase
+                report += `<h3>Climate Projection for ${currentYear}</h3>`;
+                report += `<p><strong>Temperature Increase:</strong> +${tempRise}°C above pre-industrial levels</p>`;
+
+                if (temp < 0.5) {
+                    report += `<h4>Status: Manageable</h4>`;
+                    report += `<p>Current projections show minimal climate impact. Global ecosystems remain relatively stable. Weather patterns are within historical norms, and sea levels show limited rise. This represents an achievable future with strong climate action.</p>`;
+                    report += `<p><strong>Key Impacts:</strong></p>`;
+                    report += `<ul>`;
+                    report += `<li>Minor changes in regional precipitation patterns</li>`;
+                    report += `<li>Slight increase in extreme weather frequency</li>`;
+                    report += `<li>Minimal sea level rise (~0.2-0.3m)</li>`;
+                    report += `<li>Most ecosystems adapting successfully</li>`;
+                    report += `</ul>`;
+                } else if (temp < 1.5) {
+                    report += `<h4>Status: Concerning</h4>`;
+                    report += `<p>Climate impacts are becoming increasingly apparent. Coral reefs face significant stress, and some low-lying coastal areas experience regular flooding. Arctic ice continues to decline, and weather extremes become more frequent. Agricultural systems face adaptation challenges.</p>`;
+                    report += `<p><strong>Key Impacts:</strong></p>`;
+                    report += `<ul>`;
+                    report += `<li>Coral reef bleaching widespread (~70-90%)</li>`;
+                    report += `<li>Sea level rise threatening coastal cities (0.3-0.5m)</li>`;
+                    report += `<li>Increased frequency of heat waves and droughts</li>`;
+                    report += `<li>Arctic ice retreat accelerating</li>`;
+                    report += `<li>Shifts in agricultural zones</li>`;
+                    report += `</ul>`;
+                } else if (temp < 2.5) {
+                    report += `<h4>Status: Dangerous</h4>`;
+                    report += `<p>Earth faces severe climate disruption. Most coral reefs have collapsed, and major coastal cities require extensive flood defenses. Extreme weather events cause widespread damage. Large-scale migration from affected regions begins. Food and water security become critical issues in many areas.</p>`;
+                    report += `<p><strong>Key Impacts:</strong></p>`;
+                    report += `<ul>`;
+                    report += `<li>Coral reefs functionally extinct</li>`;
+                    report += `<li>Sea level rise displacing millions (0.5-1.0m)</li>`;
+                    report += `<li>Severe droughts and flooding widespread</li>`;
+                    report += `<li>Major ecosystem collapses in progress</li>`;
+                    report += `<li>Food production significantly impacted</li>`;
+                    report += `<li>Mass species extinctions accelerating</li>`;
+                    report += `</ul>`;
+                } else {
+                    report += `<h4>Status: Catastrophic</h4>`;
+                    report += `<p>Earth experiences catastrophic climate breakdown. Large portions of the planet become uninhabitable due to extreme heat and humidity. Mass extinction events are underway. Food systems collapse in many regions. Billions face displacement. Positive feedback loops accelerate warming beyond human control.</p>`;
+                    report += `<p><strong>Key Impacts:</strong></p>`;
+                    report += `<ul>`;
+                    report += `<li>Massive sea level rise (>1.5m+) submerging major cities</li>`;
+                    report += `<li>Wet-bulb temperatures exceeding human survival limits</li>`;
+                    report += `<li>Amazon rainforest transitioning to savanna or desert</li>`;
+                    report += `<li>Permafrost methane release accelerating warming</li>`;
+                    report += `<li>Global food system failure</li>`;
+                    report += `<li>Mass extinction of 30-50% of species</li>`;
+                    report += `<li>Societal collapse in multiple regions</li>`;
+                    report += `</ul>`;
+                }
+
+                report += `<p style="margin-top: 20px; padding: 15px; background: rgba(0, 210, 255, 0.1); border-left: 3px solid #00d2ff; border-radius: 4px;">`;
+                report += `<strong>Note:</strong> This simulation is based on current climate science projections. Actual outcomes depend on mitigation efforts, technological developments, and complex Earth system feedbacks.`;
+                report += `</p>`;
+
+                content.innerHTML = report;
+                soundSystem.play('success');
+            }, 800);
+        }
+
+        function closeReportModal() {
+            document.getElementById('report-modal').style.display = 'none';
+        }
+
+        function toggleHelp() {
+            const helpModal = document.getElementById('help-modal');
+            const isVisible = helpModal.style.display === 'block';
+            helpModal.style.display = isVisible ? 'none' : 'block';
+            if (!isVisible) {
+                soundSystem.play('click');
+            }
+        }
+
+        function updateClimateVisuals() {
+            if (materialTemp) materialTemp.uniforms.uGlobalTemp.value = state.globalTemp;
+            if (materialPrecip) materialPrecip.uniforms.uGlobalTemp.value = state.globalTemp;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = performance.now() * 0.001;
+
+            // Only animate if not paused
+            if (!state.isPaused) {
+                if (earthMesh) {
+                    earthMesh.rotation.y += CONFIG.rotationSpeed;
+                    if (materialTemp) materialTemp.uniforms.uTime.value = time;
+                    if (materialPrecip) materialPrecip.uniforms.uTime.value = time;
+                }
+                if (cloudMesh) {
+                    cloudMesh.rotation.y += CONFIG.cloudSpeed;
+                    cloudMesh.rotation.x = Math.sin(time * 0.05) * 0.05;
+                }
+                if (moonPivot) {
+                    moonPivot.rotation.y += 0.0002;
+                    moonMesh.rotation.y += 0.001;
+                }
+            }
+
+            // Always update controls and render
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        init();
+    </script>
+</body>
+</html>
