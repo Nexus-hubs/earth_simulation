@@ -257,7 +257,7 @@
                 <div class="weather-icon" id="weather-icon">--</div>
                 <div class="weather-info">
                     <div class="weather-temp" id="weather-temp">--°C</div>
-                    <div class="weather-loc">Local Weather</div>
+                    <div class="weather-loc" id="weather-loc">Climate Data</div>
                 </div>
             </div>
         </div>
@@ -792,73 +792,39 @@
             moonPivot.rotation.z = 0.1; 
         }
 
-        // --- REALTIME WEATHER SERVICE (OPEN-METEO) ---
+        // --- LOCAL SIMULATED WEATHER ---
         function initRealtimeWeather() {
-            const widget = document.getElementById('weather-widget');
+            updateSimulatedWeather();
+            // Update weather every 5 seconds based on current climate state
+            setInterval(updateSimulatedWeather, 5000);
+        }
+
+        function updateSimulatedWeather() {
             const tempEl = document.getElementById('weather-temp');
             const iconEl = document.getElementById('weather-icon');
             const locEl = document.querySelector('.weather-loc');
 
-            if (!navigator.geolocation) {
-                locEl.innerText = "N/A";
-                return;
+            // Base temperature affected by global temperature state
+            const baseTemp = 15; // Base temperature in Celsius
+            const tempVariation = state.globalTemp * 30; // Can add up to 30°C
+            const randomVariation = (Math.random() - 0.5) * 5; // ±2.5°C random variation
+            const currentTemp = Math.round(baseTemp + tempVariation + randomVariation);
+
+            tempEl.innerText = `${currentTemp}°C`;
+            locEl.innerText = "Simulated";
+
+            // Choose weather icon based on temperature and scenario
+            if (currentTemp > 30) {
+                iconEl.innerText = Math.random() > 0.7 ? "⛈️" : "☀️";
+            } else if (currentTemp > 20) {
+                iconEl.innerText = Math.random() > 0.5 ? "⛅" : "☀️";
+            } else if (currentTemp > 10) {
+                iconEl.innerText = Math.random() > 0.6 ? "🌧️" : "⛅";
+            } else if (currentTemp > 0) {
+                iconEl.innerText = Math.random() > 0.7 ? "🌧️" : "🌫️";
+            } else {
+                iconEl.innerText = Math.random() > 0.5 ? "❄️" : "🌨️";
             }
-
-            locEl.innerText = "Locating...";
-
-            navigator.geolocation.getCurrentPosition(
-                async (pos) => {
-                    const lat = pos.coords.latitude;
-                    const lon = pos.coords.longitude;
-                    
-                    try {
-                        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
-                        const response = await fetch(url);
-                        const data = await response.json();
-                        
-                        if(data.current_weather) {
-                            const temp = data.current_weather.temperature;
-                            const code = data.current_weather.weathercode;
-                            
-                            tempEl.innerText = `${temp}°C`;
-                            iconEl.innerText = getWeatherIcon(code);
-                            locEl.innerText = "Local Live";
-                            
-                            // Optional: Adjust scene based on real local weather? 
-                            // e.g. if code >= 50 (rain), make scene cloudy.
-                        }
-                    } catch (e) {
-                        locEl.innerText = "Offline";
-                    }
-                },
-                (err) => {
-                    locEl.innerText = "No GPS";
-                    console.warn("Geolocation denied");
-                }
-            );
-        }
-
-        function getWeatherIcon(code) {
-            // WMO Weather interpretation codes (WW)
-            // 0: Clear sky
-            if (code === 0) return "☀️";
-            // 1, 2, 3: Mainly clear, partly cloudy, and overcast
-            if (code <= 3) return "⛅";
-            // 45, 48: Fog
-            if (code <= 48) return "🌫️";
-            // 51-55: Drizzle
-            if (code <= 55) return "🌦️";
-            // 61-67: Rain
-            if (code <= 67) return "🌧️";
-            // 71-77: Snow
-            if (code <= 77) return "❄️";
-            // 80-82: Rain showers
-            if (code <= 82) return "🌧️";
-            // 85-86: Snow showers
-            if (code <= 86) return "🌨️";
-            // 95-99: Thunderstorm
-            if (code <= 99) return "⛈️";
-            return "🌡️";
         }
 
         // ====== UI HELPER FUNCTIONS ======
@@ -953,6 +919,7 @@
                 document.getElementById('year-display').innerText = 2025 + Math.floor(val);
                 document.getElementById('deg-display').innerText = (val * 0.05).toFixed(1);
                 updateClimateVisuals();
+                updateSimulatedWeather();
             });
 
             // Volume Control
@@ -1074,6 +1041,9 @@
                     state.globalTemp = params.globalTemp;
                     updateClimateVisuals();
                 }
+
+                // Update weather widget to reflect new scenario
+                updateSimulatedWeather();
 
                 inputEl.value = "";
                 inputEl.placeholder = `✓ ${params.description}`;
